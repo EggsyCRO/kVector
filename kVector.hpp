@@ -202,7 +202,7 @@ public:
 		//
 		if (Idx > this->Count)
 		{
-			return STATUS_INVALID_PARAMETER_1;
+			return STATUS_ARRAY_BOUNDS_EXCEEDED;
 		}
 
 		//
@@ -273,7 +273,7 @@ public:
 		//
 		if (Idx >= this->Count)
 		{
-			return STATUS_INVALID_PARAMETER_1;
+			return STATUS_ARRAY_BOUNDS_EXCEEDED;
 		}
 
 		//
