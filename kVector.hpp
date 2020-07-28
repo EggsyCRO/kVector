@@ -42,6 +42,30 @@ public:
 	}
 
 	//
+	// Returns a reference to the first entry in the array
+	//
+	T& front()
+	{
+		return this->at(0);
+	}
+
+	//
+	// Returns a reference to the last entry in the array
+	//
+	T& back()
+	{
+		return this->at(this->Count - 1);
+	}
+
+	//
+	// Returns a pointer to the buffer containing the entries
+	//
+	T* data()
+	{
+		return this->Buffer;
+	}
+
+	//
 	// Returns true if the array has no entries
 	//
 	bool empty()
@@ -182,16 +206,6 @@ public:
 	}
 
 	//
-	// Swaps the given entries in the array
-	//
-	void swap(T& Left, T& Right)
-	{
-		T Temp = Left;
-		Left = Right;
-		Right = Temp;
-	}
-
-	//
 	// Inserts an entry at the given index, moving all
 	// entries at that index or higher 1 index higher
 	//
@@ -202,7 +216,7 @@ public:
 		//
 		if (Idx > this->Count)
 		{
-			return STATUS_ARRAY_BOUNDS_EXCEEDED;
+			return STATUS_INVALID_PARAMETER_1;
 		}
 
 		//
@@ -329,6 +343,16 @@ public:
 		}
 
 		return STATUS_SUCCESS;
+	}
+
+	//
+	// Swaps the given entries in the array
+	//
+	void swap(T& Left, T& Right)
+	{
+		T Temp = Left;
+		Left = Right;
+		Right = Temp;
 	}
 
 };
