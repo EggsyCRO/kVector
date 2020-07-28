@@ -1,5 +1,3 @@
-#pragma once
-
 template <typename T>
 class kVector
 {
@@ -44,6 +42,14 @@ public:
 	}
 
 	//
+	// Returns true if the array has no entries
+	//
+	bool empty()
+	{
+		return this->Count == 0;
+	}
+
+	//
 	// Removes all entries from the array
 	//
 	void clear()
@@ -83,6 +89,11 @@ public:
 		{
 			return STATUS_INSUFFICIENT_RESOURCES;
 		}
+
+		//
+		// Zero the new pool
+		//
+		RtlZeroMemory(NewPool, sizeof(T) * (this->Count + 1));
 
 		//
 		// If there are already entries, copy them to the new pool
@@ -143,6 +154,11 @@ public:
 		}
 
 		//
+		// Zero the new pool
+		//
+		RtlZeroMemory(NewPool, sizeof(T) * (this->Count - 1));
+
+		//
 		// Copy the buffer without the last entry to the new pool and decremtent the count
 		//
 		RtlCopyMemory(NewPool, this->Buffer, sizeof(T) * (--this->Count));
@@ -173,6 +189,146 @@ public:
 		T Temp = Left;
 		Left = Right;
 		Right = Temp;
+	}
+
+	//
+	// Inserts an entry at the given index, moving all
+	// entries at that index or higher 1 index higher
+	//
+	NTSTATUS insert(SIZE_T Idx, T Entry)
+	{
+		//
+		// Are you retarded?
+		//
+		if (Idx > this->Count)
+		{
+			return STATUS_INVALID_PARAMETER_1;
+		}
+
+		//
+		// If the given index is equal to the current amount of 
+		// entries, just use push_back to add it at the end
+		//
+		if (Idx == this->Count)
+		{
+			return this->push_back(Entry);
+		}
+
+		//
+		// Allocate a NoExecute pool to store the new buffer
+		//
+		auto NewPool = ExAllocatePool(NonPagedPoolNx, sizeof(T) * (this->Count + 1));
+
+		if (NewPool == NULL)
+		{
+			return STATUS_INSUFFICIENT_RESOURCES;
+		}
+
+		//
+		// Zero the new pool
+		//
+		RtlZeroMemory(NewPool, sizeof(T) * (this->Count + 1));
+
+		//
+		// Copy the old entries before the new entry to the new pool
+		//
+		RtlCopyMemory(NewPool, this->Buffer, sizeof(T) * Idx);
+
+		//
+		// Copy the new entry to the new pool
+		//
+		RtlCopyMemory((PVOID) ((ULONG64) NewPool + sizeof(T) * Idx), &Entry, sizeof(T));
+		
+		//
+		// Copy the old entries after the new entry to the new pool and increment the count
+		//
+		RtlCopyMemory((PVOID) ((ULONG64) NewPool + sizeof(T) * (Idx + 1)), (PVOID) ((ULONG64) this->Buffer + sizeof(T) * Idx), sizeof(T) * (this->Count++ - Idx));
+
+		//
+		// Set the pointer to the buffer as the address
+		// of the new pool and save the old pointer
+		//
+		auto OldPool = InterlockedExchangePointer((volatile PVOID*) &this->Buffer, NewPool);
+
+		//
+		// If there was alredy a pool containing entries, zero it free it
+		//
+		if (OldPool != NULL)
+		{
+			RtlZeroMemory(OldPool, sizeof(T) * (this->Count + 1));
+			ExFreePool(OldPool);
+		}
+
+		return STATUS_SUCCESS;
+	}
+
+	//
+	// Ereses an entry at the given index, moving all
+	// entries higher than that index 1 index lower
+	//
+	NTSTATUS erase(SIZE_T Idx)
+	{
+		//
+		// Are you retarded?
+		//
+		if (Idx >= this->Count)
+		{
+			return STATUS_INVALID_PARAMETER_1;
+		}
+
+		//
+		// If the given index is equal to the index of 
+		// the last entry, just remove the last entry
+		//
+		if (Idx == this->Count - 1)
+		{
+			return this->pop_back();
+		}
+
+		//
+		// Allocate a NoExecute pool to store the new buffer
+		//
+		auto NewPool = ExAllocatePool(NonPagedPoolNx, sizeof(T) * (this->Count + 1));
+
+		if (NewPool == NULL)
+		{
+			return STATUS_INSUFFICIENT_RESOURCES;
+		}
+
+		//
+		// Zero the new pool
+		//
+		RtlZeroMemory(NewPool, sizeof(T) * (this->Count + 1));
+
+		//
+		// If there are entries before the given index, copy them to the new pool
+		//
+		if (Idx != 0)
+		{
+			RtlCopyMemory(NewPool, this->Buffer, sizeof(T) * Idx);
+		}
+
+		//
+		// Copy the old entries after the given index to the new pool and decrement the count
+		//
+		RtlCopyMemory((PVOID) ((ULONG64) NewPool + sizeof(T) * Idx), (PVOID) ((ULONG64) this->Buffer + sizeof(T) * (Idx + 1)), sizeof(T) * (--this->Count - Idx));
+
+		//
+		// Set the pointer to the buffer as the address
+		// of the new pool and save the old pointer
+		//
+		auto OldPool = InterlockedExchangePointer((volatile PVOID*) &this->Buffer, NewPool);
+
+		//
+		// If there was alredy a pool containing entries, zero it free it
+		//
+		if (OldPool != NULL)
+		{
+			RtlZeroMemory(OldPool, sizeof(T) * (this->Count + 1));
+			ExFreePool(OldPool);
+		}
+
+		return STATUS_SUCCESS;
 	}
 
 };
