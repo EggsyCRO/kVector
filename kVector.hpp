@@ -10,17 +10,42 @@ private:
 
 public:
 
+	//
+	// Initializes the array
+	//
 	kVector()
 	{
 		this->Count = 0;
 		this->Buffer = NULL;
 	}
 
+	//
+	// Destroys the array
+	//
 	~kVector()
 	{
 		this->clear();
 	}
 
+	//
+	// Returns the amount of members in the array
+	//
+	SIZE_T size()
+	{
+		return this->Count;
+	}
+
+	//
+	// Returns a reference to the entry at the specified index
+	//
+	T& at(SIZE_T Idx)
+	{
+		return this->Buffer[Idx];
+	}
+
+	//
+	// Removes all entries from the array
+	//
 	void clear()
 	{
 		//
@@ -44,16 +69,9 @@ public:
 		this->Buffer = NULL;
 	}
 
-	SIZE_T size()
-	{
-		return this->Count;
-	}
-
-	T& at(SIZE_T Idx)
-	{
-		return this->Buffer[Idx];
-	}
-
+	//
+	// Adds an entry to the array
+	//
 	NTSTATUS push_back(T Entry)
 	{
 		//
@@ -97,6 +115,9 @@ public:
 		return STATUS_SUCCESS;
 	}
 
+	//
+	// Removes the last entry from the array
+	//
 	NTSTATUS pop_back()
 	{
 		//
@@ -142,6 +163,16 @@ public:
 		}
 
 		return STATUS_SUCCESS;
+	}
+
+	//
+	// Swaps the given entries in the array
+	//
+	void swap(T& Left, T& Right)
+	{
+		T Temp = Left;
+		Left = Right;
+		Right = Temp;
 	}
 
 };
