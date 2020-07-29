@@ -350,9 +350,14 @@ public:
 	//
 	void swap(T& Left, T& Right)
 	{
-		T Temp = Left;
-		Left = Right;
-		Right = Temp;
+		T Temp = { };
+
+		//
+		// Exchange the memory of Left and Right using a temporary variable
+		//
+		RtlCopyMemory(&Temp, &Left, sizeof(T));
+		RtlCopyMemory(&Left, &Right, sizeof(T));
+		RtlCopyMemory(&Right, &Temp, sizeof(T));
 	}
 
 };
