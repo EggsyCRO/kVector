@@ -113,12 +113,12 @@ public:
 	//
 	// Allocate a new pool with the given size and copy the old entries there
 	//
-	NTSTATUS resize(SIZE_T NewPoolSize)
+	NTSTATUS resize(SIZE_T NewEntryCount)
 	{
 		//
-		// If the new size is 0, clear the array
+		// If the new entry count is 0, clear the array
 		//
-		if (NewPoolSize == 0)
+		if (NewEntryCount == 0)
 		{
 			this->clear();
 
@@ -128,10 +128,15 @@ public:
 		//
 		// If all entries won't fit in the new pool, remove the entries from the back
 		//
-		if (sizeof(T) * this->Count > NewPoolSize)
+		if (this->Count > NewEntryCount)
 		{
-			this->Count = NewPoolSize / sizeof(T);
+			this->Count = NewEntryCount;
 		}
+
+		//
+		// Calculate the new pool size
+		//
+		auto NewPoolSize = sizeof(T) * NewEntryCount;
 
 		//
 		// Allocate a NoExecute pool to store the buffer
@@ -183,13 +188,12 @@ public:
 	// Allocate a new pool with the given size and copy the old entries there,
 	// the remaining space in the pool is filled with NewEntries
 	//
-	NTSTATUS resize(SIZE_T NewPoolSize, T& NewEntries)
-	{
-		
+	NTSTATUS resize(SIZE_T NewEntryCount, T NewEntries)
+	{	
 		//
-		// If the new size is 0, clear the array
+		// If the new entry count is 0, clear the array
 		//
-		if (NewPoolSize == 0)
+		if (NewEntryCount == 0)
 		{
 			this->clear();
 
@@ -199,10 +203,15 @@ public:
 		//
 		// If all entries won't fit in the new pool, remove the entries from the back
 		//
-		if (sizeof(T) * this->Count > NewPoolSize)
+		if (this->Count > NewEntryCount)
 		{
-			this->Count = NewPoolSize / sizeof(T);
+			this->Count = NewEntryCount;
 		}
+
+		//
+		// Calculate the new pool size
+		//
+		auto NewPoolSize = sizeof(T) * NewEntryCount;
 
 		//
 		// Allocate a NoExecute pool to store the buffer
@@ -217,8 +226,7 @@ public:
 		//
 		// Zero the new pool
 		//
-		RtlZeroMemory(NewPool, NewPoolSize);
-		
+		RtlZeroMemory(NewPool, NewPoolSize);	
 
 		//
 		// If there are already entries, copy them to the new pool
@@ -231,7 +239,7 @@ public:
 		//
 		// While there is remaining space in the pool, fill it with the new entries and increment the count
 		//
-		while (NewPoolSize > sizeof(T) * (this->Count + 1))
+		while (NewEntryCount > this->Count)
 		{
 			RtlCopyMemory((PVOID) ((ULONG64) NewPool + sizeof(T) * this->Count++), &NewEntries, sizeof(T));
 		}
