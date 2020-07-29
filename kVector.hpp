@@ -9,7 +9,7 @@ private:
 public:
 
 	//
-	// Initializes the array
+	// Initializes the instance
 	//
 	kVector()
 	{
@@ -18,7 +18,7 @@ public:
 	}
 
 	//
-	// Destroys the array
+	// Destroys the instance
 	//
 	~kVector()
 	{
@@ -194,7 +194,7 @@ public:
 		auto OldPool = InterlockedExchangePointer((volatile PVOID*) &this->Buffer, NewPool);
 
 		//
-		// If there was alredy a pool containing entries, zero it free it
+		// If there was alredy a pool containing entries, zero it and free it
 		//
 		if (OldPool != NULL)
 		{
@@ -265,7 +265,7 @@ public:
 		auto OldPool = InterlockedExchangePointer((volatile PVOID*) &this->Buffer, NewPool);
 
 		//
-		// If there was alredy a pool containing entries, zero it free it
+		// If there was alredy a pool containing entries, zero it and free it
 		//
 		if (OldPool != NULL)
 		{
@@ -334,7 +334,7 @@ public:
 		auto OldPool = InterlockedExchangePointer((volatile PVOID*) &this->Buffer, NewPool);
 
 		//
-		// If there was alredy a pool containing entries, zero it free it
+		// If there was alredy a pool containing entries, zero it and free it
 		//
 		if (OldPool != NULL)
 		{
