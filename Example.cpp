@@ -173,7 +173,7 @@ PrintListInfo(List, false);
 // > List.at(6) 1347
 // > List.at(7) 10
 // > List.size() 8
-// > List.pool_size() 40
+// > List.pool_size() 32
 // > Inserted 333 in the first entry
 // > List.at(0) 333
 // > List.at(1) 1347
@@ -185,7 +185,7 @@ PrintListInfo(List, false);
 // > List.at(7) 1347
 // > List.at(8) 10
 // > List.size() 9
-// > List.pool_size() 40
+// > List.pool_size() 36
 // > Cleared the list
 // > List.size() 0
 // > List.pool_size() 0
