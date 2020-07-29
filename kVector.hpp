@@ -115,7 +115,7 @@ public:
 	//
 	NTSTATUS push_back(T Entry)
 	{
-		return this->insert(0, Entry);
+		return this->insert(this->Count, Entry);
 	}
 
 	//
