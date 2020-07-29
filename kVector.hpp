@@ -1,3 +1,5 @@
+#pragma once
+
 template <typename T>
 class kVector
 {
@@ -318,14 +320,22 @@ public:
 		if (this->PoolSize >= sizeof(T) * (this->Count + 1))
 		{
 			//
-			// Shift the entries after the entry we're inserting 1 index higher and increment the entry count
+			// Shift the entries after the entry we're inserting 1 index higher if they exist
 			//
-			RtlCopyMemory((PVOID) ((ULONG64) this->Buffer + sizeof(T) * (Idx + 1)), (PVOID) ((ULONG64) this->Buffer + sizeof(T) * Idx), sizeof(T) * (this->Count++ - Idx));
+			if (Idx < this->Count)
+			{
+				RtlCopyMemory((PVOID) ((ULONG64) this->Buffer + sizeof(T) * (Idx + 1)), (PVOID)((ULONG64) this->Buffer + sizeof(T) * Idx), sizeof(T) * (this->Count - Idx));
+			}
 
 			//
 			// Copy the new entry in the array
 			//
 			RtlCopyMemory((PVOID) ((ULONG64) this->Buffer + sizeof(T) * Idx), &Entry, sizeof(T));
+
+			//
+			// Increment the entry count
+			//
+			this->Count++;
 
 			return STATUS_SUCCESS;
 		}
@@ -364,12 +374,15 @@ public:
 		//
 		// Copy the new entry to the new pool
 		//
-		RtlCopyMemory((PVOID) ((ULONG64) NewPool + sizeof(T) * Idx), &Entry, sizeof(T));
-		
-		//
-		// Copy the old entries after the new entry to the new pool and increment the entry count
-		//
-		RtlCopyMemory((PVOID) ((ULONG64) NewPool + sizeof(T) * (Idx + 1)), (PVOID) ((ULONG64) this->Buffer + sizeof(T) * Idx), sizeof(T) * (this->Count++ - Idx));
+		RtlCopyMemory((PVOID) ((ULONG64) NewPool + sizeof(T) * Idx), &Entry, sizeof(T));	
+
+		if (Idx < this->Count)
+		{
+			//
+			// Copy the old entries after the new entry to the new pool and increment the entry count
+			//
+			RtlCopyMemory((PVOID) ((ULONG64) NewPool + sizeof(T) * (Idx + 1)), (PVOID) ((ULONG64) this->Buffer + sizeof(T) * Idx), sizeof(T) * (this->Count - Idx));
+		}
 
 		//
 		// Set the pointer to the buffer as the address
@@ -387,9 +400,10 @@ public:
 		}
 
 		//
-		// Update the pool size
+		// Update the pool size and increment the entry count
 		//
 		this->PoolSize = NewPoolSize;
+		this->Count++;
 
 		return STATUS_SUCCESS;
 	}
@@ -453,7 +467,7 @@ public:
 		if (Idx < this->Count - 1)
 		{
 			//
-			// Copy the old entries after the given index to the new pool and decrement the entry count
+			// Copy the old entries after the given index to the new pool
 			//
 			RtlCopyMemory((PVOID) ((ULONG64) NewPool + sizeof(T) * Idx), (PVOID) ((ULONG64) this->Buffer + sizeof(T) * (Idx + 1)), sizeof(T) * (this->Count - (Idx + 1)));
 		}
