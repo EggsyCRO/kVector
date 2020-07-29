@@ -5,6 +5,7 @@ private:
 
 	T* Buffer;
 	SIZE_T Count;
+	SIZE_T PoolSize;
 
 public:
 
@@ -14,6 +15,7 @@ public:
 	kVector()
 	{
 		this->Count = 0;
+		this->PoolSize = 0;
 		this->Buffer = NULL;
 	}
 
@@ -31,6 +33,14 @@ public:
 	SIZE_T size()
 	{
 		return this->Count;
+	}
+
+	//
+	// Returns the size of the pool which contains the entries
+	//
+	SIZE_T pool_size()
+	{
+		return this->PoolSize;
 	}
 
 	//
@@ -79,9 +89,9 @@ public:
 	void clear()
 	{
 		//
-		// If the count is 0 there is nothing to clear
+		// If the pool size is 0 there is nothing to clear
 		//
-		if (this->Count == 0)
+		if (this->PoolSize == 0)
 		{
 			return;
 		}
@@ -91,11 +101,12 @@ public:
 		//
 		if (this->Buffer != NULL)
 		{
-			RtlZeroMemory(this->Buffer, sizeof(T) * this->Count);
+			RtlZeroMemory(this->Buffer, this->PoolSize);
 			ExFreePool(this->Buffer);
 		}
 
 		this->Count = 0;
+		this->PoolSize = 0;
 		this->Buffer = NULL;
 	}
 
@@ -105,9 +116,27 @@ public:
 	NTSTATUS push_back(T Entry)
 	{
 		//
+		// Check if the existing pool is big enough to store the new entry
+		//
+		if (this->PoolSize >= sizeof(T) * (this->Count + 1))
+		{
+			//
+			// If it is, just add it after the last entry and increment the entry count
+			//
+			RtlCopyMemory((PVOID) ((ULONG64) this->Buffer + sizeof(T) * this->Count++), &Entry, sizeof(T));
+
+			return STATUS_SUCCESS;
+		}
+
+		//
+		// Calculate the required pool size
+		//
+		auto NewPoolSize = sizeof(T) * (this->Count + 1);
+
+		//
 		// Allocate a NoExecute pool to store the new buffer
 		//
-		auto NewPool = ExAllocatePool(NonPagedPoolNx, sizeof(T) * (this->Count + 1));
+		auto NewPool = ExAllocatePool(NonPagedPoolNx, NewPoolSize);
 
 		if (NewPool == NULL)
 		{
@@ -117,7 +146,7 @@ public:
 		//
 		// Zero the new pool
 		//
-		RtlZeroMemory(NewPool, sizeof(T) * (this->Count + 1));
+		RtlZeroMemory(NewPool, NewPoolSize);
 
 		//
 		// If there are already entries, copy them to the new pool
@@ -128,7 +157,7 @@ public:
 		}
 
 		//
-		// Copy the new entry to the new pool and increment the count
+		// Copy the new entry to the new pool and increment the entry count
 		//
 		RtlCopyMemory((PVOID) ((ULONG64) NewPool + sizeof(T) * this->Count++), &Entry, sizeof(T));
 		
@@ -143,9 +172,14 @@ public:
 		//
 		if (OldPool != NULL)
 		{
-			RtlZeroMemory(OldPool, sizeof(T) * (this->Count - 1));
+			RtlZeroMemory(OldPool, this->PoolSize);
 			ExFreePool(OldPool);
 		}
+
+		//
+		// Update the pool size
+		//
+		this->PoolSize = NewPoolSize;
 
 		return STATUS_SUCCESS;
 	}
@@ -156,7 +190,7 @@ public:
 	NTSTATUS pop_back()
 	{
 		//
-		// If the count is 0, there is nothing to remove
+		// If the entry count is 0, there is nothing to remove
 		//
 		if (this->Count == 0)
 		{
@@ -164,12 +198,27 @@ public:
 		}
 
 		//
-		// Allocate a NoExecute pool to store the modified buffer without the last entry
+		// If there is only one entry, clear the array
 		//
-		auto NewPool = ExAllocatePool(NonPagedPoolNx, sizeof(T) * (this->Count - 1));
+		if (this->Count == 1)
+		{
+			this->clear();
+
+			return STATUS_SUCCESS;
+		}
 
 		//
-		// If the allocation failed, just zero the last entry and decrement the count
+		// Calculate the required pool size
+		//
+		auto NewPoolSize = sizeof(T) * (this->Count - 1);
+
+		//
+		// Allocate a NoExecute pool to store the modified buffer without the last entry
+		//
+		auto NewPool = ExAllocatePool(NonPagedPoolNx, NewPoolSize);
+
+		//
+		// If the allocation failed, just zero the last entry and decrement the entry count
 		//
 		if (NewPool == NULL)
 		{
@@ -180,10 +229,10 @@ public:
 		//
 		// Zero the new pool
 		//
-		RtlZeroMemory(NewPool, sizeof(T) * (this->Count - 1));
+		RtlZeroMemory(NewPool, NewPoolSize);
 
 		//
-		// Copy the buffer without the last entry to the new pool and decremtent the count
+		// Copy the buffer without the last entry to the new pool and decremtent the entry count
 		//
 		RtlCopyMemory(NewPool, this->Buffer, sizeof(T) * (--this->Count));
 
@@ -198,9 +247,14 @@ public:
 		//
 		if (OldPool != NULL)
 		{
-			RtlZeroMemory(OldPool, sizeof(T) * (this->Count + 1));
+			RtlZeroMemory(OldPool, this->PoolSize);
 			ExFreePool(OldPool);
 		}
+
+		//
+		// Update the pool size
+		//
+		this->PoolSize = NewPoolSize;
 
 		return STATUS_SUCCESS;
 	}
@@ -229,9 +283,32 @@ public:
 		}
 
 		//
+		// Check if the existing pool is big enough to store the new entry
+		//
+		if (this->PoolSize >= sizeof(T) * (this->Count + 1))
+		{
+			//
+			// Shift the entries after the entry we're inserting 1 index higher and increment the entry count
+			//
+			RtlCopyMemory((PVOID) ((ULONG64) this->Buffer + sizeof(T) * (Idx + 1)), (PVOID) ((ULONG64) this->Buffer + sizeof(T) * Idx), sizeof(T) * (this->Count++ - Idx));
+
+			//
+			// Copy the new entry in the array
+			//
+			RtlCopyMemory((PVOID) ((ULONG64) this->Buffer + sizeof(T) * Idx), &Entry, sizeof(T));
+
+			return STATUS_SUCCESS;
+		}
+
+		//
+		// Calculate the required pool size
+		//
+		auto NewPoolSize = sizeof(T) * (this->Count + 1);
+
+		//
 		// Allocate a NoExecute pool to store the new buffer
 		//
-		auto NewPool = ExAllocatePool(NonPagedPoolNx, sizeof(T) * (this->Count + 1));
+		auto NewPool = ExAllocatePool(NonPagedPoolNx, NewPoolSize);
 
 		if (NewPool == NULL)
 		{
@@ -241,12 +318,18 @@ public:
 		//
 		// Zero the new pool
 		//
-		RtlZeroMemory(NewPool, sizeof(T) * (this->Count + 1));
+		RtlZeroMemory(NewPool, NewPoolSize);
 
 		//
-		// Copy the old entries before the new entry to the new pool
+		// Check if there are old entries before the entry we're inserting
 		//
-		RtlCopyMemory(NewPool, this->Buffer, sizeof(T) * Idx);
+		if (Idx != 0)
+		{
+			//
+			// Copy the old entries before the new entry to the new pool
+			//
+			RtlCopyMemory(NewPool, this->Buffer, sizeof(T) * Idx);
+		}
 
 		//
 		// Copy the new entry to the new pool
@@ -254,7 +337,7 @@ public:
 		RtlCopyMemory((PVOID) ((ULONG64) NewPool + sizeof(T) * Idx), &Entry, sizeof(T));
 		
 		//
-		// Copy the old entries after the new entry to the new pool and increment the count
+		// Copy the old entries after the new entry to the new pool and increment the entry count
 		//
 		RtlCopyMemory((PVOID) ((ULONG64) NewPool + sizeof(T) * (Idx + 1)), (PVOID) ((ULONG64) this->Buffer + sizeof(T) * Idx), sizeof(T) * (this->Count++ - Idx));
 
@@ -269,9 +352,14 @@ public:
 		//
 		if (OldPool != NULL)
 		{
-			RtlZeroMemory(OldPool, sizeof(T) * (this->Count + 1));
+			RtlZeroMemory(OldPool, this->PoolSize);
 			ExFreePool(OldPool);
 		}
+
+		//
+		// Update the pool size
+		//
+		this->PoolSize = NewPoolSize;
 
 		return STATUS_SUCCESS;
 	}
@@ -300,9 +388,14 @@ public:
 		}
 
 		//
+		// Calculate the required pool size
+		//
+		auto NewPoolSize = sizeof(T) * (this->Count + 1);
+
+		//
 		// Allocate a NoExecute pool to store the new buffer
 		//
-		auto NewPool = ExAllocatePool(NonPagedPoolNx, sizeof(T) * (this->Count + 1));
+		auto NewPool = ExAllocatePool(NonPagedPoolNx, NewPoolSize);
 
 		if (NewPool == NULL)
 		{
@@ -312,18 +405,21 @@ public:
 		//
 		// Zero the new pool
 		//
-		RtlZeroMemory(NewPool, sizeof(T) * (this->Count + 1));
+		RtlZeroMemory(NewPool, NewPoolSize);
 
 		//
-		// If there are entries before the given index, copy them to the new pool
+		// Check if there are old entries before the entry we're erasing
 		//
 		if (Idx != 0)
 		{
+			//
+			// Copy the old entries before the given index to the new pool
+			//
 			RtlCopyMemory(NewPool, this->Buffer, sizeof(T) * Idx);
 		}
 
 		//
-		// Copy the old entries after the given index to the new pool and decrement the count
+		// Copy the old entries after the given index to the new pool and decrement the entry count
 		//
 		RtlCopyMemory((PVOID) ((ULONG64) NewPool + sizeof(T) * Idx), (PVOID) ((ULONG64) this->Buffer + sizeof(T) * (Idx + 1)), sizeof(T) * (--this->Count - Idx));
 
@@ -341,6 +437,11 @@ public:
 			RtlZeroMemory(OldPool, sizeof(T) * (this->Count + 1));
 			ExFreePool(OldPool);
 		}
+
+		//
+		// Update the pool size
+		//
+		this->PoolSize = NewPoolSize;
 
 		return STATUS_SUCCESS;
 	}
