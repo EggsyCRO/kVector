@@ -324,7 +324,7 @@ public:
 			//
 			if (Idx < this->Count)
 			{
-				RtlCopyMemory((PVOID) ((ULONG64) this->Buffer + sizeof(T) * (Idx + 1)), (PVOID)((ULONG64) this->Buffer + sizeof(T) * Idx), sizeof(T) * (this->Count - Idx));
+				RtlCopyMemory((PVOID) ((ULONG64) this->Buffer + sizeof(T) * (Idx + 1)), (PVOID) ((ULONG64) this->Buffer + sizeof(T) * Idx), sizeof(T) * (this->Count - Idx));
 			}
 
 			//
