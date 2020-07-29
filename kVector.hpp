@@ -111,6 +111,37 @@ public:
 	}
 
 	//
+	// Adds an entry to the array
+	//
+	NTSTATUS push_back(T Entry)
+	{
+		return this->insert(0, Entry);
+	}
+
+	//
+	// Removes the last entry from the array
+	//
+	NTSTATUS pop_back()
+	{
+		return this->erase(this->Count - 1);
+	}
+
+	//
+	// Swaps the given entries in the array
+	//
+	void swap(T& Left, T& Right)
+	{
+		T Temp = { };
+
+		//
+		// Exchange the memory of Left and Right using a temporary variable
+		//
+		RtlCopyMemory(&Temp, &Left, sizeof(T));
+		RtlCopyMemory(&Left, &Right, sizeof(T));
+		RtlCopyMemory(&Right, &Temp, sizeof(T));
+	}
+
+	//
 	// Allocate a new pool with the given size and copy the old entries there
 	//
 	NTSTATUS resize(SIZE_T NewEntryCount)
@@ -268,155 +299,6 @@ public:
 	}
 	
 	//
-	// Adds an entry to the array
-	//
-	NTSTATUS push_back(T Entry)
-	{
-		//
-		// Check if the existing pool is big enough to store the new entry
-		//
-		if (this->PoolSize >= sizeof(T) * (this->Count + 1))
-		{
-			//
-			// If it is, just add it after the last entry and increment the entry count
-			//
-			RtlCopyMemory((PVOID) ((ULONG64) this->Buffer + sizeof(T) * this->Count++), &Entry, sizeof(T));
-
-			return STATUS_SUCCESS;
-		}
-
-		//
-		// Calculate the required pool size
-		//
-		auto NewPoolSize = sizeof(T) * (this->Count + 1);
-
-		//
-		// Allocate a NoExecute pool to store the new buffer
-		//
-		auto NewPool = ExAllocatePool(NonPagedPoolNx, NewPoolSize);
-
-		if (NewPool == NULL)
-		{
-			return STATUS_INSUFFICIENT_RESOURCES;
-		}
-
-		//
-		// Zero the new pool
-		//
-		RtlZeroMemory(NewPool, NewPoolSize);
-
-		//
-		// If there are already entries, copy them to the new pool
-		//
-		if (this->Buffer != NULL)
-		{
-			RtlCopyMemory(NewPool, this->Buffer, sizeof(T) * this->Count);
-		}
-
-		//
-		// Copy the new entry to the new pool and increment the entry count
-		//
-		RtlCopyMemory((PVOID) ((ULONG64) NewPool + sizeof(T) * this->Count++), &Entry, sizeof(T));
-		
-		//
-		// Set the pointer to the buffer as the address
-		// of the new pool and save the old pointer
-		//
-		auto OldPool = InterlockedExchangePointer((volatile PVOID*) &this->Buffer, NewPool);
-
-		//
-		// If there was alredy a pool containing entries, zero it and free it
-		//
-		if (OldPool != NULL)
-		{
-			RtlZeroMemory(OldPool, this->PoolSize);
-			ExFreePool(OldPool);
-		}
-
-		//
-		// Update the pool size
-		//
-		this->PoolSize = NewPoolSize;
-
-		return STATUS_SUCCESS;
-	}
-
-	//
-	// Removes the last entry from the array
-	//
-	NTSTATUS pop_back()
-	{
-		//
-		// If the entry count is 0, there is nothing to remove
-		//
-		if (this->Count == 0)
-		{
-			return STATUS_SUCCESS;
-		}
-
-		//
-		// If there is only one entry, clear the array
-		//
-		if (this->Count == 1)
-		{
-			this->clear();
-
-			return STATUS_SUCCESS;
-		}
-
-		//
-		// Calculate the required pool size
-		//
-		auto NewPoolSize = sizeof(T) * (this->Count - 1);
-
-		//
-		// Allocate a NoExecute pool to store the modified buffer without the last entry
-		//
-		auto NewPool = ExAllocatePool(NonPagedPoolNx, NewPoolSize);
-
-		//
-		// If the allocation failed, just zero the last entry and decrement the entry count
-		//
-		if (NewPool == NULL)
-		{
-			RtlZeroMemory((PVOID) ((ULONG64) this->Buffer + sizeof(T) * --this->Count), sizeof(T));
-			return STATUS_SUCCESS;
-		}
-
-		//
-		// Zero the new pool
-		//
-		RtlZeroMemory(NewPool, NewPoolSize);
-
-		//
-		// Copy the buffer without the last entry to the new pool and decremtent the entry count
-		//
-		RtlCopyMemory(NewPool, this->Buffer, sizeof(T) * (--this->Count));
-
-		//
-		// Set the pointer to the buffer as the address
-		// of the new pool and save the old pointer
-		//
-		auto OldPool = InterlockedExchangePointer((volatile PVOID*) &this->Buffer, NewPool);
-
-		//
-		// If there was alredy a pool containing entries, zero it and free it
-		//
-		if (OldPool != NULL)
-		{
-			RtlZeroMemory(OldPool, this->PoolSize);
-			ExFreePool(OldPool);
-		}
-
-		//
-		// Update the pool size
-		//
-		this->PoolSize = NewPoolSize;
-
-		return STATUS_SUCCESS;
-	}
-
-	//
 	// Inserts an entry at the given index, moving all
 	// entries at that index or higher 1 index higher
 	//
@@ -428,15 +310,6 @@ public:
 		if (Idx > this->Count)
 		{
 			return STATUS_ARRAY_BOUNDS_EXCEEDED;
-		}
-
-		//
-		// If the given index is equal to the current amount of 
-		// entries, just use push_back to add it at the end
-		//
-		if (Idx == this->Count)
-		{
-			return this->push_back(Entry);
 		}
 
 		//
@@ -528,6 +401,14 @@ public:
 	NTSTATUS erase(SIZE_T Idx)
 	{
 		//
+		// If the entry count is 0, there is nothing to remove
+		//
+		if (this->Count == 0)
+		{
+			return STATUS_SUCCESS;
+		}
+
+		//
 		// Are you retarded?
 		//
 		if (Idx >= this->Count)
@@ -536,18 +417,9 @@ public:
 		}
 
 		//
-		// If the given index is equal to the index of 
-		// the last entry, just remove the last entry
-		//
-		if (Idx == this->Count - 1)
-		{
-			return this->pop_back();
-		}
-
-		//
 		// Calculate the required pool size
 		//
-		auto NewPoolSize = sizeof(T) * (this->Count + 1);
+		auto NewPoolSize = sizeof(T) * (this->Count - 1);
 
 		//
 		// Allocate a NoExecute pool to store the new buffer
@@ -576,9 +448,15 @@ public:
 		}
 
 		//
-		// Copy the old entries after the given index to the new pool and decrement the entry count
+		// Check if there are old entries after the entry we're erasing
 		//
-		RtlCopyMemory((PVOID) ((ULONG64) NewPool + sizeof(T) * Idx), (PVOID) ((ULONG64) this->Buffer + sizeof(T) * (Idx + 1)), sizeof(T) * (--this->Count - Idx));
+		if (Idx < this->Count - 1)
+		{
+			//
+			// Copy the old entries after the given index to the new pool and decrement the entry count
+			//
+			RtlCopyMemory((PVOID) ((ULONG64) NewPool + sizeof(T) * Idx), (PVOID) ((ULONG64) this->Buffer + sizeof(T) * (Idx + 1)), sizeof(T) * (this->Count - (Idx + 1)));
+		}
 
 		//
 		// Set the pointer to the buffer as the address
@@ -596,26 +474,12 @@ public:
 		}
 
 		//
-		// Update the pool size
+		// Update the pool size and decrement the entry count
 		//
 		this->PoolSize = NewPoolSize;
+		this->Count--;
 
 		return STATUS_SUCCESS;
-	}
-
-	//
-	// Swaps the given entries in the array
-	//
-	void swap(T& Left, T& Right)
-	{
-		T Temp = { };
-
-		//
-		// Exchange the memory of Left and Right using a temporary variable
-		//
-		RtlCopyMemory(&Temp, &Left, sizeof(T));
-		RtlCopyMemory(&Left, &Right, sizeof(T));
-		RtlCopyMemory(&Right, &Temp, sizeof(T));
 	}
 
 };
