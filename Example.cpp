@@ -1,21 +1,21 @@
 // Example code:
 
-#define PrintListInfo(List, PrintAllEntries) 		\
-if (PrintAllEntries) 								\
-{ 													\
-	for (SIZE_T j = 0; j < List.size(); j++) 		\
-	{ 												\
-		Debug("List.at(%llu) %d", j, List.at(j)); 	\
-	} 												\
-} 													\
-Debug("List.size() %llu", List.size()); 			\
+#define PrintListInfo(List, PrintAllEntries) \
+if (PrintAllEntries) \
+{ \
+	for (SIZE_T j = 0; j < List.size(); j++) \
+	{ \
+		Debug("List.at(%llu) %d", j, List.at(j)); \
+	} \
+} \
+Debug("List.size() %llu", List.size()); \
 Debug("List.pool_size() %llu", List.pool_size());
 
 //-------------------------------------//
 
 kVector<int> List;
 
-Debug("Created list");
+Debug("Created the list");
 PrintListInfo(List, false);
 
 // ..
@@ -68,16 +68,31 @@ PrintListInfo(List, true);
 
 // ..
 
+List.erase(2);
+
+Debug("Erased the entry at index 2");
+PrintListInfo(List, true);
+
+// ..
+
+List.insert(0, 333);
+Debug("Inserted 333 in the first entry");
+PrintListInfo(List, true);
+
+// ..
+
 List.clear();
 
 Debug("Cleared the list");
-	
 PrintListInfo(List, false);
 
 //-------------------------------------//
 
 // Debug output:
 
+// > Created the list
+// > List.size() 0
+// > List.pool_size() 0
 // > Added entries
 // > List.at(0) 0
 // > List.at(1) 1
@@ -148,6 +163,29 @@ PrintListInfo(List, false);
 // > List.at(8) 10
 // > List.size() 9
 // > List.pool_size() 36
+// > Erased the entry at index 2
+// > List.at(0) 1347
+// > List.at(1) 11
+// > List.at(2) 13
+// > List.at(3) 14
+// > List.at(4) 1347
+// > List.at(5) 1347
+// > List.at(6) 1347
+// > List.at(7) 10
+// > List.size() 8
+// > List.pool_size() 40
+// > Inserted 333 in the first entry
+// > List.at(0) 333
+// > List.at(1) 1347
+// > List.at(2) 11
+// > List.at(3) 13
+// > List.at(4) 14
+// > List.at(5) 1347
+// > List.at(6) 1347
+// > List.at(7) 1347
+// > List.at(8) 10
+// > List.size() 9
+// > List.pool_size() 40
 // > Cleared the list
 // > List.size() 0
 // > List.pool_size() 0
