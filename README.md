@@ -3,10 +3,8 @@ Simple class for dynamic arrays in kernel
 
 # Preview
 
-Sample code
+[Simple example code](Example.png)
 
-![Example](Example.png)
+[Debug output](Output.png)
 
-Debug output
-
-![Output](Output.png)
+[Example code using all features](Example.cpp)
