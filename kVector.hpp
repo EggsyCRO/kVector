@@ -111,6 +111,155 @@ public:
 	}
 
 	//
+	// Allocate a new pool with the given size and copy the old entries there
+	//
+	NTSTATUS resize(SIZE_T NewPoolSize)
+	{
+		//
+		// If the new size is 0, clear the array
+		//
+		if (NewPoolSize == 0)
+		{
+			this->clear();
+
+			return STATUS_SUCCESS;
+		}
+
+		//
+		// If all entries won't fit in the new pool, remove the entries from the back
+		//
+		if (sizeof(T) * this->Count > NewPoolSize)
+		{
+			this->Count = NewPoolSize / sizeof(T);
+		}
+
+		//
+		// Allocate a NoExecute pool to store the buffer
+		//
+		auto NewPool = ExAllocatePool(NonPagedPoolNx, NewPoolSize);
+
+		if (NewPool == NULL)
+		{
+			return STATUS_INSUFFICIENT_RESOURCES;
+		}
+
+		//
+		// Zero the new pool
+		//
+		RtlZeroMemory(NewPool, NewPoolSize);
+
+		//
+		// If there are already entries, copy them to the new pool
+		//
+		if (this->Buffer != NULL)
+		{
+			RtlCopyMemory(NewPool, this->Buffer, sizeof(T) * this->Count);
+		}
+
+		//
+		// Set the pointer to the buffer as the address
+		// of the new pool and save the old pointer
+		//
+		auto OldPool = InterlockedExchangePointer((volatile PVOID*) &this->Buffer, NewPool);
+
+		//
+		// If there was alredy a pool containing entries, zero it and free it
+		//
+		if (OldPool != NULL)
+		{
+			RtlZeroMemory(OldPool, this->PoolSize);
+			ExFreePool(OldPool);
+		}
+
+		//
+		// Update the pool size
+		//
+		this->PoolSize = NewPoolSize;
+
+		return STATUS_SUCCESS;
+	}
+
+	//
+	// Allocate a new pool with the given size and copy the old entries there,
+	// the remaining space in the pool is filled with NewEntries
+	//
+	NTSTATUS resize(SIZE_T NewPoolSize, T& NewEntries)
+	{
+		
+		//
+		// If the new size is 0, clear the array
+		//
+		if (NewPoolSize == 0)
+		{
+			this->clear();
+
+			return STATUS_SUCCESS;
+		}
+
+		//
+		// If all entries won't fit in the new pool, remove the entries from the back
+		//
+		if (sizeof(T) * this->Count > NewPoolSize)
+		{
+			this->Count = NewPoolSize / sizeof(T);
+		}
+
+		//
+		// Allocate a NoExecute pool to store the buffer
+		//
+		auto NewPool = ExAllocatePool(NonPagedPoolNx, NewPoolSize);
+
+		if (NewPool == NULL)
+		{
+			return STATUS_INSUFFICIENT_RESOURCES;
+		}
+
+		//
+		// Zero the new pool
+		//
+		RtlZeroMemory(NewPool, NewPoolSize);
+		
+
+		//
+		// If there are already entries, copy them to the new pool
+		//
+		if (this->Buffer != NULL)
+		{
+			RtlCopyMemory(NewPool, this->Buffer, sizeof(T) * this->Count);
+		}
+
+		//
+		// While there is remaining space in the pool, fill it with the new entries and increment the count
+		//
+		while (NewPoolSize > sizeof(T) * (this->Count + 1))
+		{
+			RtlCopyMemory((PVOID) ((ULONG64) NewPool + sizeof(T) * this->Count++), &NewEntries, sizeof(T));
+		}
+
+		//
+		// Set the pointer to the buffer as the address
+		// of the new pool and save the old pointer
+		//
+		auto OldPool = InterlockedExchangePointer((volatile PVOID*) &this->Buffer, NewPool);
+
+		//
+		// If there was alredy a pool containing entries, zero it and free it
+		//
+		if (OldPool != NULL)
+		{
+			RtlZeroMemory(OldPool, this->PoolSize);
+			ExFreePool(OldPool);
+		}
+
+		//
+		// Update the pool size
+		//
+		this->PoolSize = NewPoolSize;
+
+		return STATUS_SUCCESS;
+	}
+	
+	//
 	// Adds an entry to the array
 	//
 	NTSTATUS push_back(T Entry)
@@ -270,7 +419,7 @@ public:
 		//
 		if (Idx > this->Count)
 		{
-			return STATUS_INVALID_PARAMETER_1;
+			return STATUS_ARRAY_BOUNDS_EXCEEDED;
 		}
 
 		//
