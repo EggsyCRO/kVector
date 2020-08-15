@@ -30,7 +30,7 @@ public:
 	}
 
 	//
-	// Returns the amount of members in the array
+	// Returns the amount of entries in the array
 	//
 	SIZE_T size()
 	{
@@ -113,7 +113,7 @@ public:
 	}
 
 	//
-	// Adds an entry to the array
+	// Inserts an entry at the end of the array
 	//
 	NTSTATUS push_back(T Entry)
 	{
